@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rede de Atendimento - Pesquisa</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Estilos para filtros avançados */
+        .advanced-filters {
+            margin-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 20px;
+        }
+        
+        .toggle-advanced-btn {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #495057;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-advanced-btn:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+        
+        .toggle-advanced-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        
+        .toggle-advanced-btn .fa-chevron-down {
+            transition: transform 0.3s ease;
+        }
+        
+        .toggle-advanced-btn.active .fa-chevron-down {
+            transform: rotate(180deg);
+        }
+        
+        .advanced-filters-content {
+            margin-top: 15px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .advanced-checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .advanced-checkbox-group .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .advanced-checkbox-group .checkbox-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .advanced-checkbox-group input[type="checkbox"] {
+            margin: 0;
+        }
+        
+        .operadoras-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        @media (max-width: 768px) {
+            .operadoras-group {
+                flex-direction: column;
+            }
+            
+            .advanced-checkbox-group {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-hospital-alt"></i>
+                <h1>Rede de Atendimento</h1>
+            </div>
+            <p class="subtitle">Pesquise hospitais, clínicas e laboratórios das operadoras Amil, Bradesco, Sul América, Hapvida e Liv Saúde</p>
+        </header>
+
+        <main class="main-content">
+            <div class="search-section">
+                <div class="search-box">
+                    <div class="search-input-wrapper">
+                        <i class="fas fa-search search-icon"></i>
+                        <input 
+                            type="text" 
+                            id="searchInput" 
+                            placeholder="Digite o nome do hospital, laboratório, clínica ou cidade..."
+                            autocomplete="off"
+                            >
+                        <button id="searchBtn" class="search-btn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <button id="clearBtn" class="clear-btn" title="Limpar pesquisa">
+                        <i class="fas fa-times"></i>
+                        Limpar
+                    </button>
+                </div>
+                
+                <div class="filters">
+                    <!-- Filtros de Operadoras -->
+                    <div class="filter-group">
+                        <label>Filtrar por operadora:</label>
+                        <div class="checkbox-group operadoras-group">
+                            <label class="checkbox-item operadora-checkbox" data-operadora="amil">
+                                <input type="checkbox" id="amil" checked>
+                                <span class="checkmark amil"></span>
+                                <span class="operadora-label">Amil</span>
+                                <div class="operadora-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip">Clique para filtrar por Amil</span>
+                                </div>
+                            </label>
+                            <label class="checkbox-item operadora-checkbox" data-operadora="amil-selecionada">
+                                <input type="checkbox" id="amil-selecionada" checked>
+                                <span class="checkmark amil-selecionada"></span>
+                                <span class="operadora-label">Amil Selecionada</span>
+                                <div class="operadora-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip">Clique para filtrar por Amil Selecionada</span>
+                                </div>
+                            </label>
+                            <label class="checkbox-item operadora-checkbox" data-operadora="bradesco">
+                                <input type="checkbox" id="bradesco" checked>
+                                <span class="checkmark bradesco"></span>
+                                <span class="operadora-label">Bradesco</span>
+                                <div class="operadora-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip">Clique para filtrar por Bradesco</span>
+                                </div>
+                            </label>
+                            <label class="checkbox-item operadora-checkbox" data-operadora="sulamerica">
+                                <input type="checkbox" id="sulamerica" checked>
+                                <span class="checkmark sulamerica"></span>
+                                <span class="operadora-label">Sul América</span>
+                                <div class="operadora-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip">Clique para filtrar por Sul América</span>
+                                </div>
+                            </label>
+                            <label class="checkbox-item operadora-checkbox" data-operadora="hapvida">
+                                <input type="checkbox" id="hapvida" checked>
+                                <span class="checkmark hapvida"></span>
+                                <span class="operadora-label">Hapvida</span>
+                                <div class="operadora-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip">Clique para filtrar por Hapvida</span>
+                                </div>
+                            </label>
+                            <label class="checkbox-item operadora-checkbox" data-operadora="liv-saude">
+                                <input type="checkbox" id="liv-saude" checked>
+                                <span class="checkmark liv-saude"></span>
+                                <span class="operadora-label">Liv Saúde</span>
+                                <div class="operadora-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span class="tooltip">Clique para filtrar por Liv Saúde</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results-section">
+                <div id="loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Pesquisando...</p>
+                </div>
+
+                <div id="noResults" class="no-results hidden">
+                    <i class="fas fa-search"></i>
+                    <h3>Nenhum resultado encontrado</h3>
+                    <p>Tente ajustar os filtros ou verificar a grafia do nome</p>
+                </div>
+
+                <div id="resultsContainer" class="results-container">
+                    <!-- Resultados serão inseridos aqui -->
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2025 Rede de Atendimento. Todos os direitos reservados.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
