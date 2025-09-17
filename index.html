@@ -226,5 +226,37 @@
     </div>
 
     <script src="script.js"></script>
+
+    <!-- SDKs do Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firestore-compat.js"></script>
+
+<script>
+        // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBLjxxFLwx9VU23VyYpjsVjcdVB98Pzls4",
+  authDomain: "rede-atendimento-planos.firebaseapp.com",
+  projectId: "rede-atendimento-planos",
+  storageBucket: "rede-atendimento-planos.firebasestorage.app",
+  messagingSenderId: "805398823851",
+  appId: "1:805398823851:web:c8edb87faa4483490688ee",
+  measurementId: "G-V6GF3T87F5"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
+firebase.initializeApp(firebaseConfig );
+const db = firebase.firestore(); // Nossa referência para o banco de dados
+</script>
+        
 </body>
 </html>
