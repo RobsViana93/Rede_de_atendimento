@@ -1,5 +1,5 @@
 // Dados globais
-let dadosHospitais = JSON.parse(localStorage.getItem('redeAtendimento')) || [];
+const hospitaisCollection = db.collection('hospitais');
 let dadosUpload = [];
 
 // Elementos do DOM
@@ -270,19 +270,50 @@ cancelUpload.addEventListener('click', () => {
 
 // Visualização de dados
 function carregarDadosTabela() {
-    const termo = viewSearch.value.toLowerCase();
-    const filtro = viewFilter.value;
-    
-    let dadosFiltrados = dadosHospitais.filter(item => {
-        const matchTermo = !termo || 
-            item.nome.toLowerCase().includes(termo) ||
-            item.cidade.toLowerCase().includes(termo) ||
-            item.estado.toLowerCase().includes(termo);
-        
-        const matchFiltro = !filtro || item.operadoras.includes(filtro);
-        
-        return matchTermo && matchFiltro;
+    // --------------------------------------------------------------------
+    // ADICIONE ESTE BLOCO NO INÍCIO DA FUNÇÃO:
+    mostrarLoading(); // (Opcional, mas bom para feedback) Mostra um spinner enquanto carrega
+    hospitaisCollection.get().then((querySnapshot) => {
+        // O Firebase retorna os dados em um formato especial (querySnapshot).
+        // Precisamos extrair e formatar para o nosso array `dadosHospitais`.
+        dadosHospitais = querySnapshot.docs.map(doc => ({ 
+            id: doc.id,      // Pega o ID único gerado pelo Firebase
+            ...doc.data()  // Pega todos os outros campos (nome, cidade, etc.)
     });
+
+    esconderLoading(); // Esconde o spinner
+    // --------------------------------------------------------------------
+
+        // O RESTO DA SUA FUNÇÃO ORIGINAL VEM AQUI DENTRO:
+        // Todo o seu código de filtro e renderização continua o mesmo,
+        // pois ele já trabalha com a variável `dadosHospitais` que acabamos de preencher.
+        const termo = viewSearch.value.toLowerCase();
+        const filtro = viewFilter.value;
+        
+        let dadosFiltrados = dadosHospitais.filter(item => {
+            // ... (seu código de filtro aqui)
+        });
+        
+        const tableHTML = `...`; // (seu código de renderização aqui)
+        dataTable.innerHTML = tableHTML;
+
+    // --------------------------------------------------------------------
+    // ADICIONE O TRATAMENTO DE ERRO:
+    }).catch((error) => {
+        console.error("Erro ao buscar documentos: ", error);
+        esconderLoading();
+        dataTable.innerHTML = "<tr><td colspan='9'>Erro ao carregar dados do banco. Verifique o console.</td></tr>";
+    });
+    // --------------------------------------------------------------------
+}
+
+// Funções de loading (opcional, mas recomendado)
+function mostrarLoading() {
+    dataTable.innerHTML = "<tr><td colspan='9'>Carregando dados...</td></tr>";
+}
+function esconderLoading() {
+    // Não faz nada, pois o conteúdo será substituído pela tabela ou mensagem de erro.
+}
     
     const tableHTML = `
         <table>
