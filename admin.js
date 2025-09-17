@@ -92,20 +92,49 @@ manualForm.addEventListener('submit', (e) => {
         operadoras: operadoras,
         modalidades: modalidades,
         planos: formData.get('planos') || '',
-        codigo: gerarCodigoUnico()
     };
+
+    const editId = manualForm.dataset.editId;
     
-    // Adicionar à lista global
-    dadosHospitais.push({
-        ...novoHospital,
-        id: Date.now()
-    });
-    
-    // Salvar no localStorage
-    localStorage.setItem('redeAtendimento', JSON.stringify(dadosHospitais));
-    
-    // Limpar formulário
-    manualForm.reset();
+    if (editId) {
+        // --- BLOCO DE EDIÇÃO (NOVO) ---
+        hospitaisCollection.doc(editId).update(hospitalData)
+            .then(() => {
+                mostrarMensagem('Hospital atualizado com sucesso!', 'success');
+                delete manualForm.dataset.editId; // Limpa o ID de edição
+                manualForm.reset(); // Limpa o formulário
+                // Recarrega a tabela para mostrar a atualização
+                if (document.getElementById('view').classList.contains('active')) {
+                    carregarDadosTabela();
+                }
+            })
+            .catch((error) => {
+                console.error("Erro ao atualizar documento: ", error);
+                alert("Ocorreu um erro ao atualizar. Verifique o console.");
+            });
+        // --- FIM DO BLOCO DE EDIÇÃO (NOVO) ---
+
+    } else {
+        // --- BLOCO DE NOVO CADASTRO (NOVO) ---
+        if (hospitalJaExiste(nome, estado, cidade)) {
+            alert('Este hospital já está cadastrado no sistema!');
+            return;
+        }
+
+        hospitaisCollection.add(hospitalData)
+            .then((docRef) => {
+                console.log("Documento salvo com o ID: ", docRef.id);
+                mostrarMensagem('Hospital cadastrado com sucesso!', 'success');
+                manualForm.reset(); // Limpa o formulário
+                // Recarrega a tabela para mostrar o novo item
+                if (document.getElementById('view').classList.contains('active')) {
+                    carregarDadosTabela();
+                }
+            })
+            .catch((error) => {
+                console.error("Erro ao adicionar documento: ", error);
+                alert("Ocorreu um erro ao salvar. Verifique o console.");
+            });
     
     // Mostrar mensagem de sucesso com código
     mostrarMensagem(`Hospital cadastrado com sucesso! Código: ${novoHospital.codigo}`, 'success');
