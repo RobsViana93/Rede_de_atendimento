@@ -272,23 +272,54 @@ function mostrarPreviewUpload() {
 }
 
 confirmUpload.addEventListener('click', () => {
-    // Adicionar dados à lista principal
+    if (dadosUpload.length === 0) return;
+    
+   // 1. Inicia um "pacote" de operações. Pense nisso como um carrinho de compras.
+    const batch = db.batch();
+
+    // 2. Para cada item na nossa lista de upload...
     dadosUpload.forEach(item => {
-        dadosHospitais.push({
-            ...item,
-            id: Date.now() + Math.random() // ID único
-        });
+        // ...não precisamos mais gerar 'id' ou 'codigo' manualmente se não quisermos.
+        // O Firebase pode gerar um ID único para cada documento.
+        // Apenas removemos o campo 'linha' que era só para referência.
+        delete item.linha; 
+
+        // Cria uma referência para um NOVO documento na coleção 'hospitais'.
+        // É como reservar um espaço na prateleira do banco de dados.
+        const docRef = hospitaisCollection.doc(); 
+        
+        // Adiciona a operação "salvar este item neste espaço" ao nosso carrinho (batch).
+        // A operação ainda não foi executada, está apenas na fila.
+        batch.set(docRef, item); 
     });
-    
-    // Salvar no localStorage
-    localStorage.setItem('redeAtendimento', JSON.stringify(dadosHospitais));
-    
-    // Limpar preview
-    uploadPreview.classList.add('hidden');
-    fileInput.value = '';
-    dadosUpload = [];
-    
-    mostrarMensagem(`${dadosUpload.length} registros importados com sucesso!`, 'success');
+
+    // 3. Executa todas as operações do carrinho de uma vez só.
+    // O .commit() envia o pacote inteiro para o Firebase.
+    batch.commit().then(() => {
+        // ====================================================================
+        // PARTE 3: FINALIZAÇÃO (ESSA PARTE É EXECUTADA APÓS O SUCESSO)
+        // O Firebase confirmou que salvou tudo. Agora podemos limpar a interface.
+        // ====================================================================
+        
+        // A mensagem de sucesso precisa saber quantos itens foram enviados.
+        // Como 'dadosUpload' é limpo logo depois, guardamos o número antes.
+        const numeroDeItens = dadosUpload.length;
+
+        mostrarMensagem(`${numeroDeItens} registros importados com sucesso!`, 'success');
+        
+        // Limpa a interface (seu código original)
+        uploadPreview.classList.add('hidden');
+        fileInput.value = '';
+        dadosUpload = []; // Limpa o array de upload
+        
+        // Atualiza a tabela de visualização para mostrar os novos dados
+        carregarDadosTabela();
+
+    }).catch(error => {
+        // Se algo der errado durante o envio do pacote, o .catch() é acionado.
+        console.error("Erro ao fazer upload em lote: ", error);
+        alert('Ocorreu um erro ao salvar os dados da planilha. Verifique o console para mais detalhes.');
+    });
 });
 
 cancelUpload.addEventListener('click', () => {
