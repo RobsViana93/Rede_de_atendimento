@@ -516,10 +516,17 @@ window.excluirHospital = function(id) {
     const confirmacao = confirm(`Tem certeza que deseja excluir "${hospital.nome}"?\n\nEsta ação não pode ser desfeita.`);
     
     if (confirmacao) {
-        dadosHospitais = dadosHospitais.filter(h => h.id !== id);
-        localStorage.setItem('redeAtendimento', JSON.stringify(dadosHospitais));
-        carregarDadosTabela();
-        mostrarMensagem(`"${hospital.nome}" foi excluído com sucesso!`, 'success');
+        hospitaisCollection.doc(id).delete()
+            .then(() => {
+                console.log("Documento excluído com sucesso!");
+                mostrarMensagem(`"${hospital.nome}" foi excluído com sucesso!`, 'success');
+                // A função carregarDadosTabela() já busca os dados atualizados do Firebase
+                carregarDadosTabela(); 
+            })
+            .catch((error) => {
+                console.error("Erro ao excluir documento: ", error);
+                alert("Ocorreu um erro ao excluir. Verifique o console.");
+        });
     }
 };
 
