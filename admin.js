@@ -60,7 +60,6 @@ manualForm.addEventListener('submit', (e) => {
     const formData = new FormData(manualForm);
     const operadoras = formData.getAll('operadoras');
     
-    // Verificar se operadoras foram selecionadas
     if (operadoras.length === 0) {
         alert('Selecione pelo menos uma operadora!');
         return;
@@ -70,40 +69,33 @@ manualForm.addEventListener('submit', (e) => {
     const estado = formData.get('estado').trim();
     const cidade = formData.get('cidade').trim();
     
-    // Verificar se campos obrigatórios estão preenchidos
     if (!nome || !estado || !cidade) {
         alert('Por favor, preencha todos os campos obrigatórios!');
         return;
     }
     
-    // Verificar se hospital já existe
-    if (hospitalJaExiste(nome, estado, cidade)) {
-        alert('Este hospital já está cadastrado no sistema!');
-        return;
-    }
-    
     const modalidades = formData.get('modalidades') || '';
     
-    const novoHospital = {
+    // A variável com os dados do formulário
+    const hospitalData = {
         nome: nome,
         estado: estado,
         cidade: cidade,
         tipo: formData.get('tipo'),
         operadoras: operadoras,
         modalidades: modalidades,
-        planos: formData.get('planos') || '',
+        planos: formData.get('planos') || ''
     };
 
     const editId = manualForm.dataset.editId;
     
     if (editId) {
-        // --- BLOCO DE EDIÇÃO (NOVO) ---
+        // Bloco de Edição
         hospitaisCollection.doc(editId).update(hospitalData)
             .then(() => {
                 mostrarMensagem('Hospital atualizado com sucesso!', 'success');
-                delete manualForm.dataset.editId; // Limpa o ID de edição
-                manualForm.reset(); // Limpa o formulário
-                // Recarrega a tabela para mostrar a atualização
+                delete manualForm.dataset.editId;
+                manualForm.reset();
                 if (document.getElementById('view').classList.contains('active')) {
                     carregarDadosTabela();
                 }
@@ -112,21 +104,20 @@ manualForm.addEventListener('submit', (e) => {
                 console.error("Erro ao atualizar documento: ", error);
                 alert("Ocorreu um erro ao atualizar. Verifique o console.");
             });
-        // --- FIM DO BLOCO DE EDIÇÃO (NOVO) ---
-
     } else {
-        // --- BLOCO DE NOVO CADASTRO (NOVO) ---
+        // Bloco de Novo Cadastro
+        // A verificação de duplicidade precisa dos dados atuais
         if (hospitalJaExiste(nome, estado, cidade)) {
             alert('Este hospital já está cadastrado no sistema!');
             return;
         }
 
+        // Usamos a variável correta: hospitalData
         hospitaisCollection.add(hospitalData)
             .then((docRef) => {
                 console.log("Documento salvo com o ID: ", docRef.id);
                 mostrarMensagem('Hospital cadastrado com sucesso!', 'success');
-                manualForm.reset(); // Limpa o formulário
-                // Recarrega a tabela para mostrar o novo item
+                manualForm.reset();
                 if (document.getElementById('view').classList.contains('active')) {
                     carregarDadosTabela();
                 }
@@ -135,6 +126,7 @@ manualForm.addEventListener('submit', (e) => {
                 console.error("Erro ao adicionar documento: ", error);
                 alert("Ocorreu um erro ao salvar. Verifique o console.");
             });
+    }
 });
 
 // Upload de arquivo
@@ -365,60 +357,77 @@ function carregarDadosTabela() {
 }
 
 // Funções de loading (opcional, mas recomendado)
-function mostrarLoading() {
-    dataTable.innerHTML = "<tr><td colspan='9'>Carregando dados...</td></tr>";
-}
-function esconderLoading() {
-    // Não faz nada, pois o conteúdo será substituído pela tabela ou mensagem de erro.
-}
-    
-    const tableHTML = `
-        <table>
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Nome</th>
-                    <th>Estado</th>
-                    <th>Cidade</th>
-                    <th>Tipo</th>
-                    <th>Operadoras</th>
-                    <th>Modalidades</th>
-                    <th>Planos</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${dadosFiltrados.map(item => `
+function carregarDadosTabela() {
+    mostrarLoading(); // Mostra "Carregando..." na tabela
+    hospitaisCollection.get().then((querySnapshot) => {
+        // 1. Busca os dados e formata no nosso array
+        dadosHospitais = querySnapshot.docs.map(doc => ({ 
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        esconderLoading(); // Limpa a mensagem de "Carregando"
+
+        // 2. O código de filtro e renderização AGORA VEM AQUI DENTRO
+        const termo = viewSearch.value.toLowerCase();
+        const filtro = viewFilter.value;
+        
+        let dadosFiltrados = dadosHospitais.filter(item => {
+            const matchTermo = !termo || 
+                item.nome.toLowerCase().includes(termo) ||
+                item.cidade.toLowerCase().includes(termo) ||
+                item.estado.toLowerCase().includes(termo);
+            
+            const matchFiltro = !filtro || (item.operadoras && item.operadoras.includes(filtro));
+            
+            return matchTermo && matchFiltro;
+        });
+        
+        const tableHTML = `
+            <table>
+                <thead>
                     <tr>
-                        <td><strong>${item.codigo || 'N/A'}</strong></td>
-                        <td>${item.nome}</td>
-                        <td>${item.estado}</td>
-                        <td>${item.cidade}</td>
-                        <td>${getTipoNome(item.tipo)}</td>
-                        <td>
-                            ${item.operadoras.map(op => `<span class="operadora-badge ${op}">${getOperadoraNome(op)}</span>`).join(' ')}
-                        </td>
-                        <td>
-                            ${item.modalidades || '-'}
-                        </td>
-                        <td>${item.planos || '-'}</td>
-                        <td>
-                            <div class="action-buttons">
-                                <button onclick="editarHospital(${item.id})" class="btn-action btn-edit" title="Editar">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button onclick="excluirHospital(${item.id})" class="btn-action btn-delete" title="Excluir">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </td>
+                        <th>Nome</th>
+                        <th>Estado</th>
+                        <th>Cidade</th>
+                        <th>Tipo</th>
+                        <th>Operadoras</th>
+                        <th>Ações</th>
                     </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
-    
-    dataTable.innerHTML = tableHTML;
+                </thead>
+                <tbody>
+                    ${dadosFiltrados.map(item => `
+                        <tr>
+                            <td>${item.nome}</td>
+                            <td>${item.estado}</td>
+                            <td>${item.cidade}</td>
+                            <td>${getTipoNome(item.tipo)}</td>
+                            <td>
+                                ${(item.operadoras || []).map(op => `<span class="operadora-badge ${op}">${getOperadoraNome(op)}</span>`).join(' ')}
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button onclick="editarHospital('${item.id}')" class="btn-action btn-edit" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button onclick="excluirHospital('${item.id}')" class="btn-action btn-delete" title="Excluir">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        
+        dataTable.innerHTML = tableHTML;
+
+    }).catch((error) => {
+        console.error("Erro ao buscar documentos: ", error);
+        esconderLoading();
+        dataTable.innerHTML = "<tr><td colspan='6'>Erro ao carregar dados do banco. Verifique o console.</td></tr>";
+    });
 }
 
 // Elementos para exclusão em lote
