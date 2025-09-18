@@ -32,6 +32,40 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => msgElement.remove(), 3000);
     }
 
+    function mostrarPreviewUpload() {
+    if (dadosUpload.length === 0) {
+        alert('Nenhum dado válido encontrado na planilha!');
+        return;
+    }
+
+    // Gera o HTML da tabela de pré-visualização
+    const tableHTML = `
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f8f9fa; color: #333;">
+                    <th style="padding: 8px; border: 1px solid #ddd;">Nome</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">Local</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">Operadoras</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${dadosUpload.slice(0, 10).map(item => `
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${item.nome}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${item.cidade}, ${item.estado}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${(item.operadoras || []).join(', ')}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        ${dadosUpload.length > 10 ? `<p style="text-align: center; margin-top: 10px;">Mostrando 10 de ${dadosUpload.length} registros.</p>` : ''}
+    `;
+
+    // Insere a tabela no container e exibe a seção
+    previewTableContainer.innerHTML = tableHTML;
+    uploadPreview.classList.remove('hidden');
+}
+
     // --- LÓGICA DE RENDERIZAÇÃO ---
     function renderizarTabela() {
         const termo = viewSearch.value.toLowerCase();
