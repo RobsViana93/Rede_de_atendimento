@@ -1,5 +1,6 @@
 // Dados simulados - em produção, isso viria de uma API ou banco de dados
-let dadosHospitais = JSON.parse(localStorage.getItem('redeAtendimento')) || [
+const hospitaisCollection = db.collection('hospitais');
+let dadosHospitais = []; // Nosso cache de dados que virão do Firebase
     {
         id: 1,
         nome: "Hospital Albert Einstein",
@@ -95,6 +96,21 @@ const bradescoCheckbox = document.getElementById('bradesco');
 const sulamericaCheckbox = document.getElementById('sulamerica');
 const hapvidaCheckbox = document.getElementById('hapvida');
 const livSaudeCheckbox = document.getElementById('liv-saude');
+
+// Nova função para carregar os dados
+function carregarDadosIniciais() {
+    mostrarLoading();
+    hospitaisCollection.get().then((querySnapshot) => {
+        dadosHospitais = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        esconderLoading();
+        // Após carregar, podemos realizar uma busca inicial ou mostrar a mensagem padrão
+        realizarBusca(); 
+    }).catch(error => {
+        console.error("Erro ao carregar dados: ", error);
+        esconderLoading();
+        resultsContainer.innerHTML = "<p>Não foi possível conectar ao banco de dados. Tente novamente mais tarde.</p>";
+    });
+}
 
 // Função para salvar dados no localStorage
 function salvarDados() {
@@ -296,7 +312,7 @@ searchInput.addEventListener('input', () => {
 // Inicialização
 document.addEventListener('DOMContentLoaded', () => {
     // Mostrar mensagem inicial
-    mostrarMensagemInicial();
+    carregarDadosIniciais();
 });
 
 // Função para exportar dados (para uso na página admin)
