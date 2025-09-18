@@ -135,9 +135,6 @@ manualForm.addEventListener('submit', (e) => {
                 console.error("Erro ao adicionar documento: ", error);
                 alert("Ocorreu um erro ao salvar. Verifique o console.");
             });
-    
-    // Mostrar mensagem de sucesso com código
-    mostrarMensagem(`Hospital cadastrado com sucesso! Código: ${novoHospital.codigo}`, 'success');
 });
 
 // Upload de arquivo
