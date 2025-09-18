@@ -1,5 +1,5 @@
 // =================================================
-// ARQUIVO admin.js - VERSÃO FINAL CORRIGIDA
+// ARQUIVO admin.js - VERSÃO FINAL (REESTRUTURADA)
 // =================================================
 
 // 1. CONFIGURAÇÃO E INICIALIZAÇÃO DO FIREBASE
@@ -12,17 +12,109 @@ const firebaseConfig = {
     appId: "1:805398823851:web:c8edb87faa4483490688ee"
 };
 
-// Inicializa o Firebase e o Firestore
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// 2. O RESTANTE DO CÓDIGO RODA APÓS O DOM CARREGAR
-document.addEventListener('DOMContentLoaded', () => {
-    // --- VARIÁVEIS GLOBAIS ---
-    const hospitaisCollection = db.collection('hospitais');
-    let dadosHospitais = [];
-    let dadosUpload = [];
+// --- VARIÁVEIS GLOBAIS ---
+const hospitaisCollection = db.collection('hospitais');
+let dadosHospitais = [];
+let dadosUpload = [];
 
+// --- FUNÇÕES AUXILIARES ---
+const getOperadoraNome = (op) => ({ 'amil': 'Amil', 'amil-selecionada': 'Amil Selecionada', 'bradesco': 'Bradesco', 'sulamerica': 'Sul América', 'hapvida': 'Hapvida', 'liv-saude': 'Liv Saúde' }[op] || op);
+const getTipoNome = (tipo) => ({ 'hospital': 'Hospital', 'laboratorio': 'Laboratório', 'clinica': 'Clínica' }[tipo] || tipo);
+const mostrarLoading = (dataTable) => dataTable.innerHTML = "<tr><td colspan='5'>Carregando...</td></tr>";
+const hospitalJaExiste = (nome, estado, cidade) => dadosHospitais.some(h => h.nome.toLowerCase() === nome.toLowerCase() && h.estado.toLowerCase() === estado.toLowerCase() && h.cidade.toLowerCase() === cidade.toLowerCase());
+
+function mostrarMensagem(mensagem, tipo = 'info') {
+    const msgElement = document.createElement('div');
+    msgElement.style.cssText = `position: fixed; top: 20px; right: 20px; padding: 15px 20px; border-radius: 8px; color: white; font-weight: 500; z-index: 1000; background: ${tipo === 'success' ? '#28a745' : '#007bff'}; animation: slideIn 0.3s ease;`;
+    msgElement.textContent = mensagem;
+    document.body.appendChild(msgElement);
+    setTimeout(() => msgElement.remove(), 3000);
+}
+
+// --- FUNÇÕES DE RENDERIZAÇÃO E LÓGICA ---
+function renderizarTabela(dataTable, viewSearch, viewFilter) {
+    const termo = viewSearch.value.toLowerCase();
+    const filtro = viewFilter.value;
+    const dadosFiltrados = dadosHospitais.filter(item => {
+        const matchTermo = !termo || item.nome.toLowerCase().includes(termo) || item.cidade.toLowerCase().includes(termo) || item.estado.toLowerCase().includes(termo);
+        const matchFiltro = !filtro || (item.operadoras && item.operadoras.includes(filtro));
+        return matchTermo && matchFiltro;
+    });
+
+    if (dadosFiltrados.length === 0) {
+        dataTable.innerHTML = "<tr><td colspan='5'>Nenhum registro encontrado.</td></tr>";
+        return;
+    }
+    dataTable.innerHTML = `
+        <table>
+            <thead><tr><th>Nome</th><th>Local</th><th>Tipo</th><th>Operadoras</th><th>Ações</th></tr></thead>
+            <tbody>
+                ${dadosFiltrados.map(item => `
+                    <tr>
+                        <td>${item.nome}</td>
+                        <td>${item.cidade}, ${item.estado}</td>
+                        <td>${getTipoNome(item.tipo)}</td>
+                        <td>${(item.operadoras || []).map(op => `<span class="operadora-badge ${op}">${getOperadoraNome(op)}</span>`).join(' ')}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button onclick="window.editarHospital('${item.id}')" class="btn-action btn-edit" title="Editar"><i class="fas fa-edit"></i></button>
+                                <button onclick="window.excluirHospital('${item.id}')" class="btn-action btn-delete" title="Excluir"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>`).join('')}
+            </tbody>
+        </table>`;
+}
+
+function carregarDadosTabela(dataTable, viewSearch, viewFilter) {
+    mostrarLoading(dataTable);
+    hospitaisCollection.get().then(snapshot => {
+        dadosHospitais = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderizarTabela(dataTable, viewSearch, viewFilter);
+    }).catch(error => {
+        console.error("Erro ao carregar dados: ", error);
+        dataTable.innerHTML = "<tr><td colspan='5'>Erro ao carregar dados.</td></tr>";
+    });
+}
+
+function processarDadosPlanilha(jsonData, previewTableContainer, uploadPreview) {
+    dadosUpload = jsonData.map(row => ({
+        nome: row.Nome || '', estado: row.Estado || '', cidade: row.Cidade || '', tipo: row.Tipo || 'hospital',
+        operadoras: (row.Operadoras || '').split(',').map(op => op.trim().toLowerCase()).filter(Boolean),
+        modalidades: row.Modalidades || '', planos: row.Planos || ''
+    })).filter(item => item.nome && item.estado && item.cidade);
+    
+    if (dadosUpload.length === 0) return alert('Nenhum dado válido encontrado na planilha.');
+    
+    const previewHTML = `
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead><tr style="background: #f8f9fa; color: #333;"><th style="padding: 8px; border: 1px solid #ddd;">Nome</th><th style="padding: 8px; border: 1px solid #ddd;">Local</th></tr></thead>
+            <tbody>${dadosUpload.slice(0, 5).map(item => `<tr><td style="padding: 8px; border: 1px solid #ddd;">${item.nome}</td><td style="padding: 8px; border: 1px solid #ddd;">${item.cidade}, ${item.estado}</td></tr>`).join('')}</tbody>
+        </table>
+        <p style="text-align: center; margin-top: 10px;">Preview de ${dadosUpload.length} registros.</p>`;
+    
+    previewTableContainer.innerHTML = previewHTML;
+    uploadPreview.classList.remove('hidden');
+}
+
+function handleFile(file, previewTableContainer, uploadPreview) {
+    if (!file || !file.name.match(/\.(xlsx|xls)$/)) return alert('Selecione um arquivo Excel.');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            processarDadosPlanilha(jsonData, previewTableContainer, uploadPreview);
+        } catch (error) { alert('Erro ao processar o arquivo: ' + error.message); }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// --- CÓDIGO PRINCIPAL QUE RODA APÓS A PÁGINA CARREGAR ---
+document.addEventListener('DOMContentLoaded', () => {
     // --- ELEMENTOS DO DOM ---
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -37,67 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewFilter = document.getElementById('viewFilter');
     const dataTable = document.getElementById('dataTable');
 
-    // --- FUNÇÕES AUXILIARES ---
-    const getOperadoraNome = (op) => ({ 'amil': 'Amil', 'amil-selecionada': 'Amil Selecionada', 'bradesco': 'Bradesco', 'sulamerica': 'Sul América', 'hapvida': 'Hapvida', 'liv-saude': 'Liv Saúde' }[op] || op);
-    const getTipoNome = (tipo) => ({ 'hospital': 'Hospital', 'laboratorio': 'Laboratório', 'clinica': 'Clínica' }[tipo] || tipo);
-    const mostrarLoading = () => dataTable.innerHTML = "<tr><td colspan='5'>Carregando...</td></tr>";
-    const hospitalJaExiste = (nome, estado, cidade) => dadosHospitais.some(h => h.nome.toLowerCase() === nome.toLowerCase() && h.estado.toLowerCase() === estado.toLowerCase() && h.cidade.toLowerCase() === cidade.toLowerCase());
-
-    function mostrarMensagem(mensagem, tipo = 'info') {
-        const msgElement = document.createElement('div');
-        msgElement.style.cssText = `position: fixed; top: 20px; right: 20px; padding: 15px 20px; border-radius: 8px; color: white; font-weight: 500; z-index: 1000; background: ${tipo === 'success' ? '#28a745' : '#007bff'}; animation: slideIn 0.3s ease;`;
-        msgElement.textContent = mensagem;
-        document.body.appendChild(msgElement);
-        setTimeout(() => msgElement.remove(), 3000);
-    }
-
-    // --- LÓGICA DE RENDERIZAÇÃO ---
-    function renderizarTabela() {
-        const termo = viewSearch.value.toLowerCase();
-        const filtro = viewFilter.value;
-        const dadosFiltrados = dadosHospitais.filter(item => {
-            const matchTermo = !termo || item.nome.toLowerCase().includes(termo) || item.cidade.toLowerCase().includes(termo) || item.estado.toLowerCase().includes(termo);
-            const matchFiltro = !filtro || (item.operadoras && item.operadoras.includes(filtro));
-            return matchTermo && matchFiltro;
-        });
-
-        if (dadosFiltrados.length === 0) {
-            dataTable.innerHTML = "<tr><td colspan='5'>Nenhum registro encontrado.</td></tr>";
-            return;
-        }
-        dataTable.innerHTML = `
-            <table>
-                <thead><tr><th>Nome</th><th>Local</th><th>Tipo</th><th>Operadoras</th><th>Ações</th></tr></thead>
-                <tbody>
-                    ${dadosFiltrados.map(item => `
-                        <tr>
-                            <td>${item.nome}</td>
-                            <td>${item.cidade}, ${item.estado}</td>
-                            <td>${getTipoNome(item.tipo)}</td>
-                            <td>${(item.operadoras || []).map(op => `<span class="operadora-badge ${op}">${getOperadoraNome(op)}</span>`).join(' ')}</td>
-                            <td>
-                                <div class="action-buttons">
-                                    <button onclick="window.editarHospital('${item.id}')" class="btn-action btn-edit" title="Editar"><i class="fas fa-edit"></i></button>
-                                    <button onclick="window.excluirHospital('${item.id}')" class="btn-action btn-delete" title="Excluir"><i class="fas fa-trash"></i></button>
-                                </div>
-                            </td>
-                        </tr>`).join('')}
-                </tbody>
-            </table>`;
-    }
-
-    // --- LÓGICA DO FIREBASE ---
-    function carregarDadosTabela() {
-        mostrarLoading();
-        hospitaisCollection.get().then(snapshot => {
-            dadosHospitais = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderizarTabela();
-        }).catch(error => {
-            console.error("Erro ao carregar dados: ", error);
-            dataTable.innerHTML = "<tr><td colspan='5'>Erro ao carregar dados.</td></tr>";
-        });
-    }
-
     // --- EVENT LISTENERS ---
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -106,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tabContents.forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById(tabId).classList.add('active');
-            if (tabId === 'view') carregarDadosTabela();
+            if (tabId === 'view') carregarDadosTabela(dataTable, viewSearch, viewFilter);
         });
     });
 
@@ -135,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
             manualForm.reset();
             delete manualForm.dataset.editId;
             if (document.getElementById('view').classList.contains('active')) {
-                carregarDadosTabela();
+                carregarDadosTabela(dataTable, viewSearch, viewFilter);
             }
         }).catch(error => {
             console.error("Erro ao salvar: ", error);
@@ -143,48 +174,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    viewSearch.addEventListener('input', renderizarTabela);
-    viewFilter.addEventListener('change', renderizarTabela);
+    viewSearch.addEventListener('input', () => renderizarTabela(dataTable, viewSearch, viewFilter));
+    viewFilter.addEventListener('change', () => renderizarTabela(dataTable, viewSearch, viewFilter));
 
     // --- UPLOAD DE PLANILHA ---
-    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0], previewTableContainer, uploadPreview));
     uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
     uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
     uploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         uploadArea.classList.remove('dragover');
-        if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+        if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0], previewTableContainer, uploadPreview);
     });
-
-    function handleFile(file) {
-        if (!file || !file.name.match(/\.(xlsx|xls)$/)) return alert('Selecione um arquivo Excel.');
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                dadosUpload = jsonData.map(row => ({
-                    nome: row.Nome || '', estado: row.Estado || '', cidade: row.Cidade || '', tipo: row.Tipo || 'hospital',
-                    operadoras: (row.Operadoras || '').split(',').map(op => op.trim().toLowerCase()).filter(Boolean),
-                    modalidades: row.Modalidades || '', planos: row.Planos || ''
-                })).filter(item => item.nome && item.estado && item.cidade);
-                
-                if (dadosUpload.length === 0) return alert('Nenhum dado válido encontrado na planilha.');
-                
-                // CORREÇÃO FINAL: Gerar a tabela de preview
-                const previewHTML = `
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead><tr style="background: #f8f9fa; color: #333;"><th style="padding: 8px; border: 1px solid #ddd;">Nome</th><th style="padding: 8px; border: 1px solid #ddd;">Local</th></tr></thead>
-                        <tbody>${dadosUpload.slice(0, 5).map(item => `<tr><td style="padding: 8px; border: 1px solid #ddd;">${item.nome}</td><td style="padding: 8px; border: 1px solid #ddd;">${item.cidade}, ${item.estado}</td></tr>`).join('')}</tbody>
-                    </table>
-                    <p style="text-align: center; margin-top: 10px;">Preview de ${dadosUpload.length} registros.</p>`;
-                
-                previewTableContainer.innerHTML = previewHTML;
-                uploadPreview.classList.remove('hidden');
-            } catch (error) { alert('Erro ao processar o arquivo: ' + error.message); }
-        };
-        reader.readAsArrayBuffer(file);
-    }
 
     cancelUpload.addEventListener('click', () => {
         uploadPreview.classList.add('hidden');
@@ -200,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
             mostrarMensagem(`${dadosUpload.length} registros importados com sucesso!`, 'success');
             cancelUpload.click();
             if (document.getElementById('view').classList.contains('active')) {
-                carregarDadosTabela();
+                carregarDadosTabela(dataTable, viewSearch, viewFilter);
             }
         }).catch(error => console.error("Erro no upload em lote: ", error));
     });
@@ -227,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
             hospitaisCollection.doc(id).delete()
                 .then(() => {
                     mostrarMensagem(`"${hospital.nome}" excluído.`, 'success');
-                    carregarDadosTabela();
+                    carregarDadosTabela(dataTable, viewSearch, viewFilter);
                 })
                 .catch(error => console.error("Erro ao excluir: ", error));
         }
