@@ -57,14 +57,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- CARGA INICIAL ---
     mostrarLoading();
-    hospitaisCollection.get().then(snapshot => {
-        dadosHospitais = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        realizarBusca(); // Realiza a busca inicial com os filtros padrão
-    }).catch(error => {
-        console.error("Erro ao carregar dados: ", error);
-        esconderLoading();
-        resultsContainer.innerHTML = '<div class="initial-message"><h3>Erro ao conectar com o banco de dados.</h3></div>';
-    });
+hospitaisCollection.onSnapshot(snapshot => {
+    console.log("Dados recebidos do Firebase em tempo real!"); // Mensagem para teste
+    dadosHospitais = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    realizarBusca(); // Realiza a busca com os dados novos
+    esconderLoading(); // Esconde o loading após a primeira carga
+}, error => {
+    console.error("Erro ao ouvir atualizações: ", error);
+    esconderLoading();
+    resultsContainer.innerHTML = '<div class="initial-message"><h3>Erro ao conectar com o banco de dados.</h3></div>';
+});
 
     // --- EVENT LISTENERS ---
     searchInput.addEventListener('input', realizarBusca);
