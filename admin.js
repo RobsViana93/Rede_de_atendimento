@@ -1,8 +1,27 @@
+// =================================================
+// ARQUIVO admin.js - VERSÃO FINAL CORRIGIDA
+// =================================================
+
+// 1. CONFIGURAÇÃO E INICIALIZAÇÃO DO FIREBASE
+const firebaseConfig = {
+    apiKey: "AIzaSyBLjxxFLwx9VU23VyYpjsVjcdVB98Pzls4",
+    authDomain: "rede-atendimento-planos.firebaseapp.com",
+    projectId: "rede-atendimento-planos",
+    storageBucket: "rede-atendimento-planos.appspot.com",
+    messagingSenderId: "805398823851",
+    appId: "1:805398823851:web:c8edb87faa4483490688ee"
+};
+
+// Inicializa o Firebase e o Firestore
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// 2. O RESTANTE DO CÓDIGO RODA APÓS O DOM CARREGAR
 document.addEventListener('DOMContentLoaded', () => {
     // --- VARIÁVEIS GLOBAIS ---
     const hospitaisCollection = db.collection('hospitais');
-    let dadosHospitais = []; // Cache local dos dados do Firebase
-    let dadosUpload = [];    // Dados temporários da planilha Excel
+    let dadosHospitais = [];
+    let dadosUpload = [];
 
     // --- ELEMENTOS DO DOM ---
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -31,40 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(msgElement);
         setTimeout(() => msgElement.remove(), 3000);
     }
-
-    function mostrarPreviewUpload() {
-    if (dadosUpload.length === 0) {
-        alert('Nenhum dado válido encontrado na planilha!');
-        return;
-    }
-
-    // Gera o HTML da tabela de pré-visualização
-    const tableHTML = `
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="background: #f8f9fa; color: #333;">
-                    <th style="padding: 8px; border: 1px solid #ddd;">Nome</th>
-                    <th style="padding: 8px; border: 1px solid #ddd;">Local</th>
-                    <th style="padding: 8px; border: 1px solid #ddd;">Operadoras</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${dadosUpload.slice(0, 10).map(item => `
-                    <tr>
-                        <td style="padding: 8px; border: 1px solid #ddd;">${item.nome}</td>
-                        <td style="padding: 8px; border: 1px solid #ddd;">${item.cidade}, ${item.estado}</td>
-                        <td style="padding: 8px; border: 1px solid #ddd;">${(item.operadoras || []).join(', ')}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-        ${dadosUpload.length > 10 ? `<p style="text-align: center; margin-top: 10px;">Mostrando 10 de ${dadosUpload.length} registros.</p>` : ''}
-    `;
-
-    // Insere a tabela no container e exibe a seção
-    previewTableContainer.innerHTML = tableHTML;
-    uploadPreview.classList.remove('hidden');
-}
 
     // --- LÓGICA DE RENDERIZAÇÃO ---
     function renderizarTabela() {
@@ -139,8 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         if (!hospitalData.nome || !hospitalData.estado || !hospitalData.cidade || hospitalData.operadoras.length === 0) {
-            alert('Preencha todos os campos obrigatórios (*)!');
-            return;
+            return alert('Preencha todos os campos obrigatórios (*)!');
         }
 
         const editId = manualForm.dataset.editId;
@@ -150,7 +134,9 @@ document.addEventListener('DOMContentLoaded', () => {
             mostrarMensagem(`Hospital ${editId ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
             manualForm.reset();
             delete manualForm.dataset.editId;
-            carregarDadosTabela();
+            if (document.getElementById('view').classList.contains('active')) {
+                carregarDadosTabela();
+            }
         }).catch(error => {
             console.error("Erro ao salvar: ", error);
             alert("Ocorreu um erro ao salvar no banco de dados.");
@@ -184,7 +170,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 })).filter(item => item.nome && item.estado && item.cidade);
                 
                 if (dadosUpload.length === 0) return alert('Nenhum dado válido encontrado na planilha.');
-                previewTableContainer.innerHTML = `Preview de ${dadosUpload.length} registros.`;
+                
+                // CORREÇÃO FINAL: Gerar a tabela de preview
+                const previewHTML = `
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead><tr style="background: #f8f9fa; color: #333;"><th style="padding: 8px; border: 1px solid #ddd;">Nome</th><th style="padding: 8px; border: 1px solid #ddd;">Local</th></tr></thead>
+                        <tbody>${dadosUpload.slice(0, 5).map(item => `<tr><td style="padding: 8px; border: 1px solid #ddd;">${item.nome}</td><td style="padding: 8px; border: 1px solid #ddd;">${item.cidade}, ${item.estado}</td></tr>`).join('')}</tbody>
+                    </table>
+                    <p style="text-align: center; margin-top: 10px;">Preview de ${dadosUpload.length} registros.</p>`;
+                
+                previewTableContainer.innerHTML = previewHTML;
                 uploadPreview.classList.remove('hidden');
             } catch (error) { alert('Erro ao processar o arquivo: ' + error.message); }
         };
@@ -204,7 +199,9 @@ document.addEventListener('DOMContentLoaded', () => {
         batch.commit().then(() => {
             mostrarMensagem(`${dadosUpload.length} registros importados com sucesso!`, 'success');
             cancelUpload.click();
-            carregarDadosTabela();
+            if (document.getElementById('view').classList.contains('active')) {
+                carregarDadosTabela();
+            }
         }).catch(error => console.error("Erro no upload em lote: ", error));
     });
 
