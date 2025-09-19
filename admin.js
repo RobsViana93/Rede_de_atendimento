@@ -198,6 +198,41 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsArrayBuffer(file);
     }
 
+    // --- EXCLUSÃO EM LOTE POR OPERADORA ---
+    function criarControlesExclusaoLote() {
+        return `
+            <div style="background: rgba(158, 30, 76, 0.2); border: 2px solid #FF1168; border-radius: 15px; padding: 20px; margin-bottom: 20px;">
+                <h3 style="color: #FF1168; margin-bottom: 15px; font-size: 1.2rem;">
+                    <i class="fas fa-trash-alt"></i> Exclusão em Lote por Operadora
+                </h3>
+                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <select id="operadoraExclusao" style="padding: 10px 15px; border: 2px solid #9E1E4C; border-radius: 8px; font-size: 1rem; background: #25020F; color: #ECECEC; min-width: 200px;">
+                        <option value="">Selecione uma operadora</option>
+                        <option value="amil">Amil</option>
+                        <option value="amil-selecionada">Amil Selecionada</option>
+                        <option value="bradesco">Bradesco</option>
+                        <option value="sulamerica">Sul América</option>
+                        <option value="hapvida">Hapvida</option>
+                        <option value="liv-saude">Liv Saúde</option>
+                    </select>
+                    <button id="visualizarExclusao" class="btn" style="background: #9E1E4C; color: #ECECEC; border: 2px solid #FF1168; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                        <i class="fas fa-eye"></i> Visualizar Registros
+                    </button>
+                    <button id="confirmarExclusaoLote" class="btn" style="background: #9E1E4C; color: #ECECEC; border: 2px solid #FF1168; padding: 10px 20px; border-radius: 8px; cursor: pointer;" disabled>
+                        <i class="fas fa-trash"></i> Excluir Selecionados
+                    </button>
+                </div>
+                <div id="previewExclusao" style="margin-top: 15px; display: none;">
+                    <div style="background: rgba(37, 2, 15, 0.8); border-radius: 8px; padding: 15px; border: 1px solid #9E1E4C;">
+                        <p id="contadorExclusao" style="color: #FF1168; font-weight: 600; margin-bottom: 10px;"></p>
+                        <div id="listaExclusao" style="max-height: 200px; overflow-y: auto; background: rgba(37, 2, 15, 0.5); border-radius: 5px; padding: 10px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     // --- TABELA DE VISUALIZAÇÃO ---
     function carregarTabelaDados() {
         if (!dataTable) return;
@@ -209,8 +244,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 dataTable.innerHTML = '<div style="padding: 40px; text-align: center; color: #8F8F8F;">Nenhum registro encontrado.</div>';
                 return;
             }
+
+            const controlesExclusao = criarControlesExclusaoLote();
             
             const tableHTML = `
+                ${controlesExclusao}
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background: rgba(158, 30, 76, 0.3);">
@@ -247,10 +285,125 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             
             dataTable.innerHTML = tableHTML;
+            
+            // Adiciona event listeners para os controles de exclusão em lote
+            configurarControlesExclusaoLote();
+            
         }).catch(error => {
             console.error("Erro ao carregar dados da tabela:", error);
             dataTable.innerHTML = '<div style="padding: 40px; text-align: center; color: #FF1168;">Erro ao carregar dados.</div>';
         });
+    }
+
+    // --- CONTROLES DE EXCLUSÃO EM LOTE ---
+    function configurarControlesExclusaoLote() {
+        const operadoraSelect = document.getElementById('operadoraExclusao');
+        const visualizarBtn = document.getElementById('visualizarExclusao');
+        const confirmarBtn = document.getElementById('confirmarExclusaoLote');
+        const previewDiv = document.getElementById('previewExclusao');
+        const contadorP = document.getElementById('contadorExclusao');
+        const listaDiv = document.getElementById('listaExclusao');
+        
+        let registrosParaExcluir = [];
+
+        if (visualizarBtn) {
+            visualizarBtn.addEventListener('click', () => {
+                const operadoraSelecionada = operadoraSelect.value;
+                
+                if (!operadoraSelecionada) {
+                    alert('Selecione uma operadora primeiro.');
+                    return;
+                }
+
+                // Busca registros que contêm a operadora selecionada
+                hospitaisCollection.get().then(snapshot => {
+                    registrosParaExcluir = [];
+                    
+                    snapshot.docs.forEach(doc => {
+                        const data = doc.data();
+                        if (data.operadoras && data.operadoras.includes(operadoraSelecionada)) {
+                            registrosParaExcluir.push({ id: doc.id, ...data });
+                        }
+                    });
+
+                    if (registrosParaExcluir.length === 0) {
+                        alert(`Nenhum registro encontrado com a operadora ${getOperadoraNome(operadoraSelecionada)}.`);
+                        previewDiv.style.display = 'none';
+                        confirmarBtn.disabled = true;
+                        return;
+                    }
+
+                    // Mostra preview
+                    contadorP.textContent = `${registrosParaExcluir.length} registros serão excluídos:`;
+                    
+                    listaDiv.innerHTML = registrosParaExcluir.map(item => `
+                        <div style="padding: 8px; border-bottom: 1px solid #9E1E4C; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="color: #ECECEC;">${item.nome}</strong><br>
+                                <small style="color: #8F8F8F;">${item.cidade}, ${item.estado}</small>
+                            </div>
+                            <div>
+                                ${(item.operadoras || []).map(op => 
+                                    `<span style="background: ${op === operadoraSelecionada ? '#FF1168' : '#9E1E4C'}; color: #ECECEC; padding: 2px 6px; border-radius: 8px; font-size: 10px; margin-left: 2px;">${getOperadoraNome(op)}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    `).join('');
+
+                    previewDiv.style.display = 'block';
+                    confirmarBtn.disabled = false;
+
+                }).catch(error => {
+                    console.error('Erro ao buscar registros:', error);
+                    alert('Erro ao buscar registros.');
+                });
+            });
+        }
+
+        if (confirmarBtn) {
+            confirmarBtn.addEventListener('click', () => {
+                if (registrosParaExcluir.length === 0) {
+                    alert('Nenhum registro selecionado para exclusão.');
+                    return;
+                }
+
+                const operadoraNome = getOperadoraNome(operadoraSelect.value);
+                const confirmacao = confirm(`Tem certeza que deseja excluir ${registrosParaExcluir.length} registros da operadora ${operadoraNome}?\n\nEsta ação não pode ser desfeita.`);
+                
+                if (!confirmacao) return;
+
+                // Desabilita botão durante exclusão
+                confirmarBtn.disabled = true;
+                confirmarBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Excluindo...';
+
+                // Exclusão em lote usando batch
+                const batch = db.batch();
+                registrosParaExcluir.forEach(item => {
+                    const docRef = hospitaisCollection.doc(item.id);
+                    batch.delete(docRef);
+                });
+
+                batch.commit().then(() => {
+                    alert(`${registrosParaExcluir.length} registros da operadora ${operadoraNome} foram excluídos com sucesso!`);
+                    
+                    // Reset dos controles
+                    operadoraSelect.value = '';
+                    previewDiv.style.display = 'none';
+                    registrosParaExcluir = [];
+                    
+                    // Recarrega a tabela
+                    carregarTabelaDados();
+                    carregarDadosIniciais();
+                    
+                }).catch(error => {
+                    console.error('Erro na exclusão em lote:', error);
+                    alert('Erro ao excluir registros: ' + error.message);
+                }).finally(() => {
+                    confirmarBtn.disabled = false;
+                    confirmarBtn.innerHTML = '<i class="fas fa-trash"></i> Excluir Selecionados';
+                });
+            });
+        }
     }
 
     // Função auxiliar para nomes das operadoras
