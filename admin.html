@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administração - Rede de Atendimento</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* Estilos para tela de login */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #000000 0%, #25020F 50%, #000000 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .login-container {
+            background: linear-gradient(135deg, #25020F 0%, #9E1E4C 100%);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(158, 30, 76, 0.3);
+            border: 1px solid #FF1168;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .login-header h1 {
+            color: #ECECEC;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            color: #8F8F8F;
+            margin-bottom: 30px;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .login-form input {
+            padding: 15px;
+            border: 2px solid #9E1E4C;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: #25020F;
+            color: #ECECEC;
+        }
+
+        .login-form input:focus {
+            outline: none;
+            border-color: #FF1168;
+            box-shadow: 0 0 0 3px rgba(255, 17, 104, 0.2);
+        }
+
+        .login-form input::placeholder {
+            color: #8F8F8F;
+        }
+
+        .login-btn {
+            background: #FF1168;
+            color: #ECECEC;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .login-btn:hover:not(:disabled) {
+            background: #9E1E4C;
+            transform: translateY(-2px);
+        }
+
+        .login-btn:disabled {
+            background: #8F8F8F;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: rgba(255, 17, 104, 0.2);
+            color: #FF1168;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #FF1168;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .admin-content {
+            display: none;
+        }
+
+        .admin-content.active {
+            display: block;
+        }
+
+        .logout-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #9E1E4C;
+            color: #ECECEC;
+            border: 2px solid #FF1168;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .logout-btn:hover {
+            background: #FF1168;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Tela de Login -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-container">
+            <div class="login-header">
+                <i class="fas fa-lock" style="font-size: 3rem; color: #FF1168; margin-bottom: 15px;"></i>
+                <h1>Área Administrativa</h1>
+                <p>Faça login para acessar</p>
+            </div>
+            
+            <form id="loginForm" class="login-form">
+                <input type="email" id="email" placeholder="Digite seu email" required>
+                <input type="password" id="password" placeholder="Digite sua senha" required>
+                <button type="submit" class="login-btn" id="loginBtn">
+                    <i class="fas fa-sign-in-alt"></i> Entrar
+                </button>
+                <div id="errorMessage" class="error-message"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Botão de Logout (oculto inicialmente) -->
+    <button id="logoutBtn" class="logout-btn" style="display: none;">
+        <i class="fas fa-sign-out-alt"></i> Sair
+    </button>
+
+    <!-- Conteúdo Admin Original (oculto inicialmente) -->
+    <div id="adminContent" class="admin-content">
+        <div class="container">
+            <header class="header">
+                <div class="logo">
+                    <i class="fas fa-cog"></i>
+                    <h1>Administração - Rede de Atendimento</h1>
+                </div>
+                <nav class="admin-nav">
+                    <a href="index.html" class="nav-link">
+                        <i class="fas fa-search"></i>
+                        Voltar para Pesquisa
+                    </a>
+                </nav>
+            </header>
+
+            <main class="main-content">
+                <div class="admin-tabs">
+                    <button class="tab-btn active" data-tab="manual">Cadastro Manual</button>
+                    <button class="tab-btn" data-tab="upload">Upload de Planilha</button>
+                    <button class="tab-btn" data-tab="view">Visualizar Dados</button>
+                </div>
+
+                <!-- Tab Cadastro Manual -->
+                <div id="manual" class="tab-content active">
+                    <div class="form-section">
+                        <h2>Cadastro Manual</h2>
+                        <form id="manualForm" class="admin-form">
+                            <!-- Seu formulário HTML (sem alterações) -->
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="nome">Nome do Hospital/Clínica *</label>
+                                    <input type="text" id="nome" name="nome" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="estado">Estado *</label>
+                                    <select id="estado" name="estado" required>
+                                        <option value="">Selecione o estado</option>
+                                        <option value="AC">Acre</option><option value="AL">Alagoas</option><option value="AP">Amapá</option><option value="AM">Amazonas</option><option value="BA">Bahia</option><option value="CE">Ceará</option><option value="DF">Distrito Federal</option><option value="ES">Espírito Santo</option><option value="GO">Goiás</option><option value="MA">Maranhão</option><option value="MT">Mato Grosso</option><option value="MS">Mato Grosso do Sul</option><option value="MG">Minas Gerais</option><option value="PA">Pará</option><option value="PB">Paraíba</option><option value="PR">Paraná</option><option value="PE">Pernambuco</option><option value="PI">Piauí</option><option value="RJ">Rio de Janeiro</option><option value="RN">Rio Grande do Norte</option><option value="RS">Rio Grande do Sul</option><option value="RO">Rondônia</option><option value="RR">Roraima</option><option value="SC">Santa Catarina</option><option value="SP">São Paulo</option><option value="SE">Sergipe</option><option value="TO">Tocantins</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="cidade">Cidade *</label>
+                                    <input type="text" id="cidade" name="cidade" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="tipo">Tipo *</label>
+                                    <select id="tipo" name="tipo" required>
+                                        <option value="">Selecione o tipo</option>
+                                        <option value="hospital">Hospital</option>
+                                        <option value="laboratorio">Laboratório</option>
+                                        <option value="clinica">Clínica</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Operadoras *</label>
+                                <div class="checkbox-group">
+                                    <label class="checkbox-item operadora-checkbox"><input type="checkbox" name="operadoras" value="amil"><span class="checkmark amil"></span><span class="operadora-label">Amil Padrão</span></label>
+                                    <label class="checkbox-item operadora-checkbox"><input type="checkbox" name="operadoras" value="amil-selecionada"><span class="checkmark amil-selecionada"></span><span class="operadora-label">Amil Selecionada</span></label>
+                                    <label class="checkbox-item operadora-checkbox"><input type="checkbox" name="operadoras" value="bradesco"><span class="checkmark bradesco"></span><span class="operadora-label">Bradesco</span></label>
+                                    <label class="checkbox-item operadora-checkbox"><input type="checkbox" name="operadoras" value="sulamerica"><span class="checkmark sulamerica"></span><span class="operadora-label">Sul América</span></label>
+                                    <label class="checkbox-item operadora-checkbox"><input type="checkbox" name="operadoras" value="hapvida"><span class="checkmark hapvida"></span><span class="operadora-label">Hapvida</span></label>
+                                    <label class="checkbox-item operadora-checkbox"><input type="checkbox" name="operadoras" value="liv-saude"><span class="checkmark liv-saude"></span><span class="operadora-label">Liv Saúde</span></label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalidades">Modalidades de Atendimento</label>
+                                <textarea id="modalidades" name="modalidades" placeholder="Ex: Pronto Atendimento, Maternidade, UTI..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="planos">Modelos de Plano</label>
+                                <textarea id="planos" name="planos" placeholder="Descreva os modelos de plano (opcional)"></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Cadastro</button>
+                                <button type="reset" class="btn btn-secondary"><i class="fas fa-undo"></i> Limpar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Tab Upload de Planilha -->
+                <div id="upload" class="tab-content">
+                    <div class="upload-section">
+                        <h2>Upload de Planilha Excel</h2>
+                        <div class="upload-area" id="uploadArea">
+                            <div class="upload-content">
+                                <i class="fas fa-file-excel"></i>
+                                <h3>Arraste sua planilha aqui</h3>
+                                <p>ou clique para selecionar</p>
+                                <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+                                <button type="button" class="btn btn-outline" onclick="document.getElementById('fileInput').click()">Selecionar Arquivo</button>
+                            </div>
+                        </div>
+                        <div id="uploadPreview" class="upload-preview hidden">
+                            <h4>Prévia dos Dados:</h4>
+                            <div id="previewTableContainer"></div>
+                            <div class="upload-actions">
+                                <button id="confirmUpload" class="btn btn-primary"><i class="fas fa-upload"></i> Confirmar Upload</button>
+                                <button id="cancelUpload" class="btn btn-secondary"><i class="fas fa-times"></i> Cancelar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Visualizar Dados -->
+                <div id="view" class="tab-content">
+                    <div class="view-section">
+                        <h2>Visualizar Dados Cadastrados</h2>
+                        <div class="view-controls">
+                            <div class="search-controls">
+                                <input type="text" id="viewSearch" placeholder="Buscar por nome, cidade ou estado...">
+                                <select id="viewFilter">
+                                    <option value="">Todas as operadoras</option>
+                                    <option value="amil">Amil Padrão</option>
+                                    <option value="amil-selecionada">Amil Selecionada</option>
+                                    <option value="bradesco">Bradesco</option>
+                                    <option value="sulamerica">Sul América</option>
+                                    <option value="hapvida">Hapvida</option>
+                                    <option value="liv-saude">Liv Saúde</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="dataTable" class="data-table">
+                            <!-- Tabela de dados será inserida aqui -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+            <footer class="footer">
+                <p>&copy; 2025 Rede de Atendimento. Área Administrativa.</p>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+    <script>
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBLjxxFLwx9VU23VyYpjsVjcdVB98Pzls4",
+            authDomain: "rede-atendimento-planos.firebaseapp.com",
+            projectId: "rede-atendimento-planos",
+            storageBucket: "rede-atendimento-planos.appspot.com",
+            messagingSenderId: "805398823851",
+            appId: "1:805398823851:web:c8edb87faa4483490688ee"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Elementos DOM
+        const loginOverlay = document.getElementById('loginOverlay');
+        const adminContent = document.getElementById('adminContent');
+        const loginForm = document.getElementById('loginForm');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Verificar autenticação
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // Usuário logado - mostrar conteúdo admin
+                loginOverlay.style.display = 'none';
+                adminContent.classList.add('active');
+                logoutBtn.style.display = 'block';
+                
+                // Inicializar scripts admin após login bem-sucedido
+                inicializarAdmin();
+            } else {
+                // Usuário não logado - mostrar login
+                loginOverlay.style.display = 'flex';
+                adminContent.classList.remove('active');
+                logoutBtn.style.display = 'none';
+            }
+        });
+
+        // Login
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
+            errorMessage.style.display = 'none';
+
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+            } catch (error) {
+                let errorMsg = 'Erro desconhecido';
+                
+                switch (error.code) {
+                    case 'auth/user-not-found':
+                        errorMsg = 'Usuário não encontrado';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMsg = 'Senha incorreta';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMsg = 'Email inválido';
+                        break;
+                    default:
+                        errorMsg = error.message;
+                }
+                
+                errorMessage.textContent = errorMsg;
+                errorMessage.style.display = 'block';
+                document.getElementById('password').value = '';
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
+            }
+        });
+
+        // Logout
+        logoutBtn.addEventListener('click', async () => {
+            if (confirm('Tem certeza que deseja sair?')) {
+                try {
+                    await auth.signOut();
+                } catch (error) {
+                    alert('Erro ao fazer logout');
+                }
+            }
+        });
+
+        // Função para inicializar admin (seu código existente)
+        function inicializarAdmin() {
+            // Aqui você pode colocar seu código do admin.js
+            // ou incluir o script admin.js separadamente
+        }
+    </script>
+
+    <!-- Incluir seu script admin.js após o login -->
+    <script src="admin.js"></script>
+</body>
+</html>
