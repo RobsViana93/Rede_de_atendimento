@@ -593,6 +593,28 @@ function criarModalDuplicatas(duplicatas, callback) {
             const viewSearch = document.getElementById('viewSearch');
             const viewFilter = document.getElementById('viewFilter');
 
+            // --- FUNÇÃO HANDLEFILE (ADICIONAR ESTA FUNÇÃO) ---
+            function handleFile(file) {
+                if (!file || !file.name.match(/\.(xlsx|xls)$/)) {
+                    alert('Por favor, selecione um arquivo Excel (.xlsx ou .xls).');
+                return;
+                }
+    
+                const reader = new FileReader();
+                    reader.onload = (e) => {
+                try {
+                    const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                        processarDadosPlanilha(jsonData);
+                    } catch (error) {
+                        console.error('Erro ao processar arquivo:', error);
+                        alert('Erro ao processar o arquivo: ' + error.message);
+                    }
+                };
+                    reader.readAsArrayBuffer(file);
+            }
+
             // --- SISTEMA DE ABAS ---
             const tabButtons = document.querySelectorAll('.tab-btn');
             const tabContents = document.querySelectorAll('.tab-content');
@@ -705,7 +727,18 @@ function criarModalDuplicatas(duplicatas, callback) {
 
             // --- LÓGICA DE UPLOAD DE PLANILHA ---
             function processarDadosPlanilha(jsonData) {
-    let dadosProcessados = jsonData.map(row => {
+    if (!jsonData || jsonData.length === 0) {
+        alert('Planilha vazia ou formato inválido.');
+        return;
+    }
+    
+    let dadosProcessados = jsonData.map((row, index) => {
+        // Validação de campos obrigatórios
+        if (!row.Nome || !row.Estado || !row.Cidade) {
+            console.warn(`Linha ${index + 1} ignorada: campos obrigatórios faltando`);
+            return null;
+        }
+        
         let operadoras = [];
         if (row.Operadoras) {
             operadoras = row.Operadoras.toString()
@@ -723,14 +756,14 @@ function criarModalDuplicatas(duplicatas, callback) {
             modalidades: (row.Modalidades || '').toString().trim(),
             planos: (row.Planos || '').toString().trim()
         };
-    }).filter(item => item.nome && item.estado && item.cidade);
+    }).filter(item => item !== null && item.nome && item.estado && item.cidade);
     
     if (dadosProcessados.length === 0) {
-        alert('Nenhum dado válido encontrado na planilha.');
+        alert('Nenhum dado válido encontrado na planilha. Verifique se as colunas "Nome", "Estado" e "Cidade" estão preenchidas.');
         return;
     }
     
-    // *** VERIFICAÇÃO DE DUPLICATAS INTERNAS ***
+     // *** VERIFICAÇÃO DE DUPLICATAS INTERNAS ***
     const { duplicatasInternas, registrosUnicos } = verificarDuplicatasInternas(dadosProcessados);
     
     dadosUpload = registrosUnicos;
@@ -765,7 +798,7 @@ function criarModalDuplicatas(duplicatas, callback) {
                 ${registrosUnicos.slice(0, 5).map(item => 
                     `<li style="padding: 8px; border-bottom: 1px solid #9E1E4C; margin-bottom: 5px;">
                         <strong style="color: #ECECEC;">${item.nome}</strong><br>
-                        <small>${item.cidade}, ${item.estado}</small>
+                        <small>${item.cidade}, ${item.estado} • ${item.tipo} • ${item.operadoras.length} operadora(s)</small>
                     </li>`
                 ).join('')}
             </ul>
@@ -860,29 +893,33 @@ function criarModalDuplicatas(duplicatas, callback) {
             // --- EVENT LISTENERS ---
             
             // Upload de arquivo
-            if (fileInput) {
-                fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-            }
-
-            // Drag and drop
-            if (uploadArea) {
-                uploadArea.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.add('dragover');
-                });
+                if (fileInput) {
+                    fileInput.addEventListener('change', (e) => {
+                        if (e.target.files.length > 0) {
+                            handleFile(e.target.files[0]);
+                        }
+                    });
+                }
                 
-                uploadArea.addEventListener('dragleave', () => {
-                    uploadArea.classList.remove('dragover');
-                });
-                
-                uploadArea.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.remove('dragover');
-                    if (e.dataTransfer.files.length > 0) {
-                        handleFile(e.dataTransfer.files[0]);
-                    }
-                });
-            }
+                // Drag and drop
+                if (uploadArea) {
+                    uploadArea.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        uploadArea.classList.add('dragover');
+                    });
+                    
+                    uploadArea.addEventListener('dragleave', () => {
+                        uploadArea.classList.remove('dragover');
+                    });
+                    
+                    uploadArea.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        uploadArea.classList.remove('dragover');
+                        if (e.dataTransfer.files.length > 0) {
+                            handleFile(e.dataTransfer.files[0]);
+                        }
+                    });
+                }
 
             // Botão cancelar upload
             if (cancelUploadBtn) {
