@@ -37,5 +37,3 @@ Não há requisitos adicionais ou variáveis de ambiente específicas para execu
 Este projeto foi criado apenas para fins de estudo, sem nenhum objetivo lucrativo. Não possui licença específica.
 
 ---
-
-Sinta-se à vontade para modificar e adaptar este README conforme o projeto evolui!
